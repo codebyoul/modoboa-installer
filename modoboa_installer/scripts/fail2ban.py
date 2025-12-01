@@ -13,5 +13,6 @@ class Fail2ban(base.Installer):
     }
     config_files = [
         "jail.d/modoboa.conf",
+        "jail.d/mail.conf",
         "filter.d/modoboa-auth.conf",
     ]

@@ -24,6 +24,11 @@ server {
     ssl_verify_depth 3;
     ssl_dhparam /etc/nginx/dhparam.pem;
 
+    # Security headers (server-level for locations without their own add_header)
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
     client_max_body_size 10M;
 
     access_log /var/log/nginx/%{hostname}-access.log;
@@ -57,6 +62,10 @@ server {
         expires -1;
         add_header Pragma "no-cache";
         add_header Cache-Control "no-store, no-cache, must-revalidate, post-check=0, pre-check=0";
+        # Security headers (must repeat here since add_header in location overrides server level)
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
 
         try_files $uri $uri/ /index.html = 404;
     }

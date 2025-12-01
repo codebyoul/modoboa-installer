@@ -166,8 +166,11 @@ class Backup:
         # Radicale Collections
         if (self.config.has_option("radicale", "enabled") and
                 self.config.getboolean("radicale", "enabled")):
-            radicale_backup = os.path.join(self.config.get(
-                "radicale", "home_dir", fallback="/srv/radicale"), "collections")
+            # Use storage_dir for data, fallback to home_dir for compatibility
+            storage_dir = self.config.get(
+                "radicale", "storage_dir",
+                fallback=self.config.get("radicale", "home_dir", fallback="/srv/radicale"))
+            radicale_backup = os.path.join(storage_dir, "collections")
             if os.path.isdir(radicale_backup):
                 shutil.copytree(radicale_backup, os.path.join(
                     custom_path, "radicale"))

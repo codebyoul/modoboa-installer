@@ -90,9 +90,14 @@ class PostgreSQL(Database):
 
     def create_user(self, name, password):
         """Create a user."""
+        # Skip if using external database (user should be pre-created)
+        if not self.config.getboolean("database", "install"):
+            return
+        self._setup_pgpass("postgres", self.dbuser, self.dbpassword)
         query = "SELECT 1 FROM pg_roles WHERE rolname='{}'".format(name)
         code, output = utils.exec_cmd(
-            """psql -tAc "{}" | grep -q 1""".format(query),
+            """psql -h {} -p {} -U {} -w -tAc "{}" | grep -q 1""".format(
+                self.dbhost, self.dbport, self.dbuser, query),
             sudo_user=self.dbuser)
         if not code:
             return
@@ -101,13 +106,19 @@ class PostgreSQL(Database):
 
     def create_database(self, name, owner):
         """Create a database."""
+        # Skip if using external database (database should be pre-created)
+        if not self.config.getboolean("database", "install"):
+            return
+        self._setup_pgpass("postgres", self.dbuser, self.dbpassword)
         code, output = utils.exec_cmd(
-            "psql -lqt | cut -d \\| -f 1 | grep -w {} | wc -l"
-            .format(name), sudo_user=self.dbuser)
+            "psql -h {} -p {} -U {} -w -lqt | cut -d \\| -f 1 | grep -w {} | wc -l"
+            .format(self.dbhost, self.dbport, self.dbuser, name),
+            sudo_user=self.dbuser)
         if code:
             return
         utils.exec_cmd(
-            "createdb {} -O {}".format(name, owner),
+            "createdb -h {} -p {} -U {} -w {} -O {}".format(
+                self.dbhost, self.dbport, self.dbuser, name, owner),
             sudo_user=self.dbuser)
 
     def grant_access(self, dbname, user):
@@ -122,20 +133,37 @@ class PostgreSQL(Database):
         self._exec_query(query, dbname=dbname)
 
     def _setup_pgpass(self, dbname, dbuser, dbpasswd):
-        """Setup .pgpass file."""
+        """Setup .pgpass file for PostgreSQL authentication.
+
+        Creates a .pgpass file for password-less psql authentication.
+        Works for both local and remote PostgreSQL servers.
+        """
         if self._pgpass_done:
             return
-        if self.dbhost not in ["localhost", "127.0.0.1"]:
-            self._pgpass_done = True
-            return
+
+        # Get home directory of the user who will run psql
         pw = pwd.getpwnam(self.dbuser)
         target = os.path.join(pw[5], ".pgpass")
-        with open(target, "w") as fp:
-            fp.write("127.0.0.1:*:{}:{}:{}\n".format(
-                dbname, dbname, dbpasswd))
+
+        # Format: hostname:port:database:username:password
+        pgpass_entry = "{}:{}:{}:{}:{}\n".format(
+            self.dbhost, self.dbport, dbname, dbuser, dbpasswd)
+
+        # Check if entry already exists
+        existing_content = ""
+        if os.path.exists(target):
+            with open(target, "r") as fp:
+                existing_content = fp.read()
+
+        if pgpass_entry not in existing_content:
+            with open(target, "a") as fp:
+                fp.write(pgpass_entry)
+
+        # Set correct permissions (must be 600 or less)
         mode = stat.S_IRUSR | stat.S_IWUSR
         os.chmod(target, mode)
         os.chown(target, pw[2], pw[3])
+
         self._pgpass_done = True
 
     def load_sql_file(self, dbname, dbuser, dbpassword, path):

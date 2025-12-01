@@ -515,12 +515,29 @@ def validate_backup_path(path: str, silent_mode: bool):
 
 
 def create_oauth2_app(app_name: str, client_id: str, client_secret: str, config) -> tuple[str, str]:
-    """Create a application for Oauth2 authentication."""
-    # FIXME: how can we check that application already exists ?
+    """Create an OAuth2 application for authentication.
+
+    If the application already exists (same client_id), skip creation
+    since the existing app will work correctly.
+    """
     venv_path = config.get("modoboa", "venv_path")
     python_path = os.path.join(venv_path, "bin", "python")
     instance_path = config.get("modoboa", "instance_path")
     script_path = os.path.join(instance_path, "manage.py")
+
+    # First check if app already exists
+    check_cmd = (
+        f"{python_path} {script_path} shell -c "
+        f"\"from oauth2_provider.models import Application; "
+        f"print(Application.objects.filter(client_id='{client_id}').exists())\""
+    )
+    code, output = exec_cmd(check_cmd)
+
+    if output and b"True" in output:
+        # App already exists, skip creation
+        return client_id, client_secret
+
+    # Create the application
     cmd = (
         f"{python_path} {script_path} createapplication "
         f"--name={app_name} --skip-authorization "

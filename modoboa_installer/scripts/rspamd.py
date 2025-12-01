@@ -35,6 +35,15 @@ class Rspamd(base.Installer):
         "local.d/spf.conf",
         "local.d/worker-normal.inc",
         "local.d/worker-proxy.inc",
+        "local.d/actions.conf",
+        "local.d/statistic.conf",
+        "local.d/multimap.conf",
+        "local.d/maps/global_smtp_from_whitelist.map",
+        "local.d/maps/global_smtp_from_blacklist.map",
+        "local.d/maps/ip_whitelist.map",
+        "local.d/maps/ip_blacklist.map",
+        "local.d/maps/domain_whitelist.map",
+        "local.d/maps/domain_blacklist.map",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -70,7 +79,7 @@ class Rspamd(base.Installer):
         return super().install_packages()
 
     def install_config_files(self):
-        """Make sure config directory exists."""
+        """Make sure config directories exist."""
         user = self.config.get(self.appname, "user")
         pw = pwd.getpwnam(user)
         targets = [
@@ -84,6 +93,17 @@ class Rspamd(base.Installer):
                     stat.S_IROTH | stat.S_IXOTH,
                     target[1], target[2]
                 )
+
+        # Create maps directory for whitelist/blacklist files
+        maps_dir = os.path.join(self.config_dir, "local.d/maps")
+        if not os.path.exists(maps_dir):
+            utils.mkdir(
+                maps_dir,
+                stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
+                stat.S_IROTH | stat.S_IXOTH,
+                0, 0
+            )
+
         super().install_config_files()
 
     def get_config_files(self):
