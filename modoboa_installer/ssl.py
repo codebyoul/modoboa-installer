@@ -80,15 +80,31 @@ class SelfSignedCertificate(CertificateBackend):
         """Create a certificate."""
         if not self.overwrite_existing_certificate():
             return
+        hostname = self.config.get("general", "hostname")
+        cert_file = self.config.get("general", "tls_cert_file")
         utils.printcolor(
             "Generating new self-signed certificate", utils.YELLOW)
+        # Include SAN extension for hostname verification (required by modern SSL libs)
+        # SAN includes: hostname, localhost, and 127.0.0.1 for internal OAuth2 calls
         utils.exec_cmd(
             "openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 "
-            "-subj '/CN={}' -keyout {} -out {}".format(
-                self.config.get("general", "hostname"),
+            "-subj '/CN={}' "
+            "-addext 'subjectAltName=DNS:{},DNS:localhost,IP:127.0.0.1' "
+            "-keyout {} -out {}".format(
+                hostname,
+                hostname,
                 self.config.get("general", "tls_key_file"),
-                self.config.get("general", "tls_cert_file"))
+                cert_file)
         )
+        # Add self-signed certificate to system trust store
+        # This is required for Radicale OAuth2 authentication to work with self-signed certs
+        utils.printcolor(
+            "Adding self-signed certificate to system trust store", utils.YELLOW)
+        trust_store_cert = "/usr/local/share/ca-certificates/{}.crt".format(hostname)
+        utils.exec_cmd("cp {} {}".format(cert_file, trust_store_cert))
+        utils.exec_cmd("update-ca-certificates")
+        # Also append to ca-certificates.crt bundle directly (update-ca-certificates may not always work)
+        utils.exec_cmd("cat {} >> /etc/ssl/certs/ca-certificates.crt".format(cert_file))
 
 
 class LetsEncryptCertificate(CertificateBackend):

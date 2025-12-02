@@ -121,7 +121,7 @@ service auth {
   unix_listener auth-userdb {
     #mode = 0666
     user = %{mailboxes_owner}
-    #group = 
+    #group =
   }
 
   # Postfix smtp-auth
@@ -129,6 +129,13 @@ service auth {
     mode = 0666
     user = postfix
     group = postfix
+  }
+
+  # Radicale CalDAV/CardDAV authentication
+  # Allows Radicale to authenticate users via Dovecot
+  unix_listener auth-client {
+    mode = 0660
+    group = dovecot
   }
 
   # Auth process is run as this user.

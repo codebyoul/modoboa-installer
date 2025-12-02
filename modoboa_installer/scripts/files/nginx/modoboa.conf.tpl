@@ -49,6 +49,16 @@ server {
 %{rspamd_enabled}        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 %{rspamd_enabled}    }
 
+%{radicale_enabled}    # Well-known redirects for CalDAV/CardDAV autodiscovery
+%{radicale_enabled}    # Note: /radicale/ location is added by nginx.py post_run()
+%{radicale_enabled}    location /.well-known/caldav {
+%{radicale_enabled}        return 301 /radicale/;
+%{radicale_enabled}    }
+%{radicale_enabled}
+%{radicale_enabled}    location /.well-known/carddav {
+%{radicale_enabled}        return 301 /radicale/;
+%{radicale_enabled}    }
+
     location ~ ^/(api|accounts|autodiscover) {
         include uwsgi_params;
         uwsgi_param UWSGI_SCRIPT instance.wsgi:application;

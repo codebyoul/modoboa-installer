@@ -145,11 +145,12 @@ service auth {
     group = postfix
   }
 
-  %{radicale_enabled}unix_listener auth-radicale {
-  %{radicale_enabled}  mode = 0666
-  %{radicale_enabled}  user = %{radicale_user}
-  %{radicale_enabled}  group = %{radicale_user}
-  %{radicale_enabled}}
+  # Radicale CalDAV/CardDAV authentication
+  # Allows Radicale to authenticate users via Dovecot
+  unix_listener auth-client {
+    mode = 0660
+    group = dovecot
+  }
 
   # Auth process is run as this user.
   #user = $SET:default_internal_user
